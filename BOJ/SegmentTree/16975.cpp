@@ -1,69 +1,83 @@
 #include <iostream>
-#include <algorithm>
 #include <cmath>
 using namespace std;
 
-long long tree[400001];
-int n, m;
+#define MAX 987654321
+#define PREPROCESS ios_base::sync_with_stdio, cin.tie(0), cout.tie(0)
 
-void make_tree(int cidx) { //최소값 트리로 구성
-	int nidx = cidx / 2;
+struct node {
+	long long val;
+	long long lazy = 0;
+};
+int N, M;
+node tree[400001];
+
+void make_tree(int idx) {
+	int nidx = idx / 2;
 	while (nidx >= 1) {
-		tree[nidx++] = tree[nidx * 2] + tree[nidx * 2 + 1];
-		if (nidx == cidx) {
-			cidx /= 2;
-			nidx = cidx / 2;
-		}
+		tree[nidx].val = tree[nidx * 2].val + tree[nidx * 2 + 1].val;
+		nidx++;
+		if (nidx == idx)
+			idx /= 2, nidx = idx / 2;
 	}
 }
 
-void update(int i,int j) {
-	//9~12
-	if (i==1 && j==1) {
-		tree[i] = tree[i * 2] + tree[i * 2 + 1];
+
+void lazypropagate(int h,int s,int e) {
+	if (tree[h].lazy == 0) return;
+	tree[h].val += (e - s + 1)*tree[h].lazy;
+	if (s != e) {
+		tree[h * 2].lazy += tree[h].lazy;
+		tree[h * 2 + 1].lazy += tree[h].lazy;
+	}
+	tree[h].lazy = 0;
+}
+void update(int h, int s, int e, int l, int r, int x) {
+	//lazyPropagate
+	lazypropagate(h, s, e);
+	if (s > r || e < l) return;
+	if (s >= l && e <= r) {
+		tree[h].val += (e - s + 1)*x;
+		if (s != e) {
+			tree[h * 2].lazy += x;
+			tree[h * 2 + 1].lazy += x;
+		}
 		return;
 	}
-	for (int r = i; r <= j; r++) {
-		tree[r] = tree[r * 2] + tree[r * 2 + 1];
-	}
-	update(i / 2, j / 2);
+	update(h * 2, s, (s + e) / 2, l, r, x);
+	update(h * 2 + 1, (s + e) / 2 + 1, e, l, r, x);
+	tree[h].val = tree[h * 2].val + tree[h * 2 + 1].val;
 }
 
-int findMin(int r, int m, int n, int s, int e) {
-	if (s <= m && n  <= e && tree[r] != 0) return tree[r];
+long long query(int h, int s, int e, int l, int r) {
+	lazypropagate(h, s, e);
 
-	if (e < m || n < s) return 1000000001;
-
-	return min(findMin(2 * r, m, (n + m) / 2, s, e), findMin(2 * r + 1, (n + m) / 2 + 1, n, s, e));
+	if (s > r || e < l) return 0;
+	if (s >= l && e <= r) return tree[h].val;
+	
+	return query(h * 2, s, (s + e) / 2, l, r) + query(h * 2 + 1, (s + e) / 2 + 1, e, l, r);
+	//한쪽으로만 가면되느네
 }
 int main() {
-	ios::sync_with_stdio(false);
-	cin.tie(NULL);
-	cout.tie(NULL);
-	cin >> n;
-	int r = log2(n);
-	int first = 1 << (r+1);
-	for (int i = 0; i < n; i++)
-		cin >> tree[first + i];
-	make_tree(first);
-	//트리로 만들기
-	cin >> m;
-	while (m--) {
-		int cmd;
+	PREPROCESS;
+	cin >> N;
+	int r = log2(N);
+	int first = 1 << (r + 1);
+
+	for (int i = 0; i < N; i++)
+		cin >> tree[i+first].val;
+	cin >> M;
+	while (M--) {
+		int cmd, i, j, k;
 		cin >> cmd;
 		switch (cmd) {
 		case 1:
-			int i, j, k;
 			cin >> i >> j >> k;
-			for (int r = first + i - 1; r <= first + j - 1; r++) {
-				tree[r] += k;
-			}
-			update((first+i-1)/2, (first+j-1)/2);
+			update(1, 1, first, i, j, k);
 			break;
 		case 2:
-			int x;
-			cin >> x;
-			cout << tree[first + x - 1] << "\n";
+			cin >> k;
+			cout << query(1, 1, first, k, k)<<'\n';
 			break;
 		}
 	}
